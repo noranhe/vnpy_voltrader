@@ -54,7 +54,7 @@ class VoltraderDatafeed(BaseDatafeed):
 
         self.api: TCoreAPI = None       # API实例
 
-        self.symbol_name_map: dict[str, str] = {}
+        self.symbol_name_map: dict[str, str] = {}       # vt_symbol: ice_symbol
 
     def init(self, output: Callable = print) -> bool:
         """初始化"""

@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from typing import Optional, Callable
 
-from icetcore import TCoreAPI
+from icetcore import TCoreAPI, BarType
 
 from vnpy.trader.setting import SETTINGS
 from vnpy.trader.constant import Exchange, Interval
@@ -10,12 +10,14 @@ from vnpy.trader.utility import ZoneInfo
 from vnpy.trader.datafeed import BaseDatafeed
 
 
+# 时间周期映射
 INTERVAL_VT2ICE: dict[Interval, tuple] = {
-    Interval.MINUTE: (4, 1),
-    Interval.HOUR: (4, 60),
-    Interval.DAILY: (5, 1)
+    Interval.MINUTE: (BarType.MINUTE, 1),
+    Interval.HOUR: (BarType.MINUTE, 60),
+    Interval.DAILY: (BarType.DK, 1)
 }
 
+# 时间调整映射
 INTERVAL_ADJUSTMENT_MAP: dict[Interval, timedelta] = {
     Interval.MINUTE: timedelta(minutes=1),
     Interval.HOUR: timedelta(hours=1),
@@ -33,8 +35,8 @@ EXCHANGE_ICE2VT: dict[str, Exchange] = {
     "SSE": Exchange.SSE,
     "SZSE": Exchange.SZSE,
 }
-EXCHANGE_VT2ICE: dict[Exchange, str] = {v: k for k, v in EXCHANGE_ICE2VT.items()}
 
+# 时区常量
 CHINA_TZ = ZoneInfo("Asia/Shanghai")
 
 
@@ -42,37 +44,53 @@ class VoltraderDatafeed(BaseDatafeed):
     """咏春大师的数据服务接口"""
 
     def __init__(self):
-        """"""
-        self.username: str = SETTINGS.get("datafeed.username", "C:/AlgoMaster2/APPs64")
+        """构造函数"""
+        self.apppath: str = SETTINGS.get(
+            "datafeed.username",        # 传参用的字段名
+            "C:/AlgoMaster2/APPs64"     # 默认程序路径
+        )
 
-        self.inited: bool = False
+        self.inited: bool = False       # 初始化状态
 
-        self.api: TCoreAPI = None
+        self.api: TCoreAPI = None       # API实例
+
         self.symbol_name_map: dict[str, str] = {}
 
     def init(self, output: Callable = print) -> bool:
         """初始化"""
+        # 禁止重复初始化
         if self.inited:
             return True
 
-        self.api = TCoreAPI(apppath=self.username)
+        # 创建API实例并连接
+        self.api = TCoreAPI(apppath=self.apppath)
         self.api.connect()
 
+        # 查询支持的合约代码
         self.query_symbols()
-        self.inited = True
 
+        # 返回初始化状态
+        self.inited = True
         return True
 
     def query_symbols(self) -> None:
         """查询合约"""
         for exchange_str in EXCHANGE_ICE2VT.keys():
             symbols: list = self.api.getallsymbol(exchange=exchange_str)
-            for symbol_str in symbols:
 
-                if "/" in symbol_str or "HOT" in symbol_str or "_" in symbol_str:    # 没有过滤期货指数合约
+            for symbol_str in symbols:
+                # 过滤不支持的合约
+                if (
+                    "/" in symbol_str
+                    or "HOT" in symbol_str
+                    or "_" in symbol_str
+                ):
                     continue
 
+                # 查询交易所代码
                 symbol_id: str = self.api.getsymbol_id(symbol_str)
+
+                # 保存映射关系
                 self.symbol_name_map[symbol_id] = symbol_str
 
     def query_bar_history(self, req: HistoryRequest, output: Callable = print) -> Optional[list[BarData]]:
@@ -82,31 +100,38 @@ class VoltraderDatafeed(BaseDatafeed):
             if not n:
                 return []
 
+        # 检查合约代码
         name: str = self.symbol_name_map.get(req.symbol, None)
         if not name:
             output(f"查询K线数据失败：不支持的合约代码{req.vt_symbol}")
             return []
 
-        interval, window = INTERVAL_VT2ICE.get(req.interval, ("", ""))
-        if not interval:
+        # 检查K线周期
+        ice_interval, ice_window = INTERVAL_VT2ICE.get(req.interval, ("", ""))
+        if not ice_interval:
             output(f"查询K线数据失败：不支持的时间周期{req.interval.value}")
             return []
 
+        # 获取时间戳平移幅度
         adjustment: timedelta = INTERVAL_ADJUSTMENT_MAP[req.interval]
 
-        quote_history: list = self.api.getquotehistory(
-            interval,
-            window,
+        # 发起K线查询
+        quote_history: list[dict] = self.api.getquotehistory(
+            ice_interval,
+            ice_window,
             name,
             req.start.strftime("%Y%m%d%H"),
             req.end.strftime("%Y%m%d%H")
         )
 
+        # 失败则直接返回
         if not quote_history:
             self.output(f"获取{req.symbol}合约{req.start}-{req.end}历史数据失败")
             return []
 
+        # 转换数据格式
         bars: list[BarData] = []
+
         for history in quote_history:
             dt: datetime = (history["DateTime"] - adjustment).replace(tzinfo=CHINA_TZ)
             if req.interval == Interval.DAILY:
@@ -130,5 +155,5 @@ class VoltraderDatafeed(BaseDatafeed):
         return bars
 
     def query_tick_history(self, req: HistoryRequest, output: Callable = print) -> Optional[list[TickData]]:
-        """查询Tick数据"""
+        """查询Tick数据（暂未支持）"""
         return []

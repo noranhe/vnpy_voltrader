@@ -45,16 +45,15 @@ class VoltraderDatafeed(BaseDatafeed):
 
     def __init__(self):
         """构造函数"""
-        self.apppath: str = SETTINGS.get(
-            "datafeed.username",        # 传参用的字段名
-            "C:/AlgoMaster2/APPs64"     # 默认程序路径
-        )
+        self.apppath: str = SETTINGS["datafeed.username"]      # 传参用的字段名
+        if not self.apppath:
+            self.apppath = "C:/AlgoMaster2/APPs64"             # 默认程序路径
 
-        self.inited: bool = False       # 初始化状态
+        self.inited: bool = False                              # 初始化状态
 
-        self.api: TCoreAPI = None       # API实例
+        self.api: TCoreAPI = None                              # API实例
 
-        self.symbol_name_map: dict[str, str] = {}       # vt_symbol: ice_symbol
+        self.symbol_name_map: dict[str, str] = {}              # vt_symbol: ice_symbol
 
     def init(self, output: Callable = print) -> bool:
         """初始化"""

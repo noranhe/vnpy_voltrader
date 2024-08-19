@@ -78,14 +78,6 @@ class VoltraderDatafeed(BaseDatafeed):
             symbols: list = self.api.getallsymbol(exchange=exchange_str)
 
             for symbol_str in symbols:
-                # 过滤不支持的合约
-                if (
-                    "/" in symbol_str
-                    or "HOT" in symbol_str
-                    or "_" in symbol_str
-                ):
-                    continue
-
                 # 查询交易所代码
                 symbol_id: str = self.api.getsymbol_id(symbol_str)
 

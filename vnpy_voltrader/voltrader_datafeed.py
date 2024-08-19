@@ -117,7 +117,7 @@ class VoltraderDatafeed(BaseDatafeed):
 
         # 失败则直接返回
         if not quote_history:
-            self.output(f"获取{req.symbol}合约{req.start}-{req.end}历史数据失败")
+            output(f"获取{req.symbol}合约{req.start}-{req.end}历史数据失败")
             return []
 
         # 转换数据格式

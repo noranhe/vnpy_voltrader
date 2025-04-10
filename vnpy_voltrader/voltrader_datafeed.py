@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from typing import Optional, Callable
+from collections.abc import Callable
 
 from icetcore import TCoreAPI, BarType
 
@@ -84,7 +84,7 @@ class VoltraderDatafeed(BaseDatafeed):
                 # 保存映射关系
                 self.symbol_name_map[symbol_id] = symbol_str
 
-    def query_bar_history(self, req: HistoryRequest, output: Callable = print) -> Optional[list[BarData]]:
+    def query_bar_history(self, req: HistoryRequest, output: Callable = print) -> list[BarData] | None:
         """查询K线数据"""
         if not self.inited:
             n: bool = self.init(output)
@@ -172,6 +172,6 @@ class VoltraderDatafeed(BaseDatafeed):
 
         return bars
 
-    def query_tick_history(self, req: HistoryRequest, output: Callable = print) -> Optional[list[TickData]]:
+    def query_tick_history(self, req: HistoryRequest, output: Callable = print) -> list[TickData] | None:
         """查询Tick数据（暂未支持）"""
         return []
